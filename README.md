@@ -1,5 +1,9 @@
 # Assignment 2: Classify
 
+---
+## [Visit the HackMD Document](https://hackmd.io/@whoishuni/rkDN16ufJe)
+
+---
 1. [Introduction](#introduction)
 2. [Task 1: ReLU Activation Function](#task-1-relu-activation-function)
    - [Overview](#overview)
@@ -42,9 +46,6 @@
 
 ---
 
-
-
----
 
 ## Introduction
 
