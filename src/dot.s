@@ -25,46 +25,52 @@
 #   - Exits with code 36 if element count < 1
 #   - Exits with code 37 if any stride < 1
 # =======================================================
-
 dot:
-    # 檢查參數是否有效
+    # Check if element count < 1 (error code 36)
     li t0, 1
-    blt a2, t0, error_terminate  # 若元素數量小於1，跳轉到錯誤處理
-    blt a3, t0, error_terminate  # 若第一數組的步長小於1，跳轉到錯誤處理
-    blt a4, t0, error_terminate  # 若第二數組的步長小於1，跳轉到錯誤處理
+    blt a2, t0, error_36
 
-    li t0, 0              # 初始化點積總和為0，存入 t0
-    li t1, 0              # 設置迭代計數器 t1 為0
+    # Check if stride0 or stride1 < 1 (error code 37)
+    blt a3, t0, error_37
+    blt a4, t0, error_37
+
+    # Initialize result accumulator to 0
+    li t0, 0              # t0 will hold the result (dot product sum)
+    li t1, 0              # t1 will be our loop counter
 
 loop_start:
-    bge t1, a2, loop_end  # 若已處理所有元素，跳轉到結束
+    # Check if we've reached the end of the element count
+    bge t1, a2, loop_end
 
-    # 加載第一數組的元素 a0[t1 * a3]，並存入 t2
-    mul t3, t1, a3        # t3 = t1 * stride0
-    add t3, a0, t3        # t3 = address of arr0[t1 * stride0]
-    lw t2, 0(t3)          # 將 arr0[t1 * stride0] 加載到 t2
+    # Calculate arr0[i * stride0] by loading element with offset
+    mul t2, t1, a3        # t2 = i * stride0
+    slli t2, t2, 2        # Multiply by 4 to get byte offset (word size)
+    add t3, a0, t2        # Adjust arr0 address by stride offset
+    lw t4, 0(t3)          # Load arr0[i * stride0] into t4
 
-    # 加載第二數組的元素 a1[t1 * a4]，並存入 t4
-    mul t3, t1, a4        # t3 = t1 * stride1
-    add t3, a1, t3        # t3 = address of arr1[t1 * stride1]
-    lw t4, 0(t3)          # 將 arr1[t1 * stride1] 加載到 t4
+    # Calculate arr1[i * stride1] by loading element with offset
+    mul t5, t1, a4        # t5 = i * stride1
+    slli t5, t5, 2        # Multiply by 4 to get byte offset
+    add t6, a1, t5        # Adjust arr1 address by stride offset
+    lw t3, 0(t6)          # Load arr1[i * stride1] into t3
 
-    # 計算產品並累加到總和
-    mul t5, t2, t4        # t5 = arr0[i * stride0] * arr1[i * stride1]
-    add t0, t0, t5        # 將 t5 累加到總和 t0
+    # Multiply arr0[i * stride0] * arr1[i * stride1] and add to result
+    mul t4, t4, t3        # t4 = arr0[i * stride0] * arr1[i * stride1]
+    add t0, t0, t4        # Accumulate product in t0
 
-    addi t1, t1, 1        # 迭代計數器加1
-    j loop_start          # 回到循環開頭
+    # Increment loop counter
+    addi t1, t1, 1        # Increment index counter
+    j loop_start          # Repeat loop
 
 loop_end:
-    mv a0, t0             # 將計算結果存入 a0 作為返回值
-    ret                   # 返回
+    mv a0, t0             # Store the result in a0
+    jr ra                 # Return to caller
 
-error_terminate:
-    blt a2, t0, set_error_36 # 若元素數量 < 1，設置錯誤代碼36
-    li a0, 37                # 若步長無效，設置錯誤代碼37
-    j exit                   # 跳轉到結束
+# Error handling
+error_36:
+    li a0, 36             # Set error code 36 for invalid length
+    j exit                # Exit program
 
-set_error_36:
-    li a0, 36                # 設置錯誤代碼36
-    j exit                   # 跳轉到結束
+error_37:
+    li a0, 37             # Set error code 37 for invalid stride
+    j exit                # Exit program

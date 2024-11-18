@@ -34,112 +34,123 @@
 # Memory Note:
 #   Caller is responsible for freeing returned matrix pointer
 # ==============================================================================
+
 read_matrix:
-    
-    # Prologue
-    addi sp, sp, -40
-    sw ra, 0(sp)
-    sw s0, 4(sp)
-    sw s1, 8(sp)
-    sw s2, 12(sp)
-    sw s3, 16(sp)
-    sw s4, 20(sp)
 
-    mv s3, a1         # save and copy rows
-    mv s4, a2         # save and copy cols
+    # Function Prologue
+    addi   sp, sp, -48            # Allocate stack frame
+    sw     ra, 44(sp)             # Save return address
+    sw     s0, 40(sp)             # Save s0-s4 registers
+    sw     s1, 36(sp)
+    sw     s2, 32(sp)
+    sw     s3, 28(sp)
+    sw     s4, 24(sp)
 
-    li a1, 0
+    mv     s3, a1                 # Save address to store row count
+    mv     s4, a2                 # Save address to store column count
 
-    jal fopen
+    # Open the binary file
+    li     a1, 0                  # Mode 0 for reading
+    jal    fopen                  # Open file
 
-    li t0, -1
-    beq a0, t0, fopen_error   # fopen didn't work
+    li     t0, -1
+    beq    a0, t0, fopen_error    # Check for fopen error
 
-    mv s0, a0        # file
+    mv     s0, a0                 # Save file pointer
 
-    # read rows n columns
-    mv a0, s0
-    addi a1, sp, 28  # a1 is a buffer
+    # Read the header (rows and columns)
+    mv     a0, s0                 # File pointer
+    addi   a1, sp, 0              # Buffer on stack
+    li     a2, 8                  # Number of bytes to read
+    jal    fread                  # Read header
 
-    li a2, 8         # look at 2 numbers
+    li     t0, 8
+    bne    a0, t0, fread_error    # Check if 8 bytes were read
 
-    jal fread
+    lw     t1, 0(sp)              # Load number of rows
+    lw     t2, 4(sp)              # Load number of columns
 
-    li t0, 8
-    bne a0, t0, fread_error
+    sw     t1, 0(s3)              # Store rows at provided address
+    sw     t2, 0(s4)              # Store columns at provided address
 
-    lw t1, 28(sp)    # opening to save num rows
-    lw t2, 32(sp)    # opening to save num cols
+    # Calculate total number of elements (rows * columns)
+    # Optimized multiplication using Russian Peasant Multiplication
+    li     s1, 0                  # Initialize product to 0
+    mv     t3, t1                 # t3 = multiplicand (rows)
+    mv     t4, t2                 # t4 = multiplier (columns)
 
-    sw t1, 0(s3)     # saves num rows
-    sw t2, 0(s4)     # saves num cols
+multiply_loop:
+    beqz   t4, multiply_done      # Exit loop when multiplier is 0
+    andi   t5, t4, 1              # Check if LSB of multiplier is 1
+    beqz   t5, skip_add           # If LSB is 0, skip addition
+    add    s1, s1, t3             # Add multiplicand to product
+skip_add:
+    slli   t3, t3, 1              # Double the multiplicand
+    srli   t4, t4, 1              # Halve the multiplier
+    j      multiply_loop
+multiply_done:
 
-    # mul s1, t1, t2   # s1 is number of elements
-    # FIXME: Replace 'mul' with your own implementation
+    # Calculate size in bytes (elements * 4)
+    slli   s1, s1, 2              # Multiply total elements by 4, store back in s1
 
-    slli t3, s1, 2
-    sw t3, 24(sp)    # size in bytes
+    # Allocate memory for the matrix
+    mv     a0, s1                 # Size in bytes
+    jal    malloc                 # Allocate memory
 
-    lw a0, 24(sp)    # a0 = size in bytes
+    beq    a0, x0, malloc_error   # Check for malloc error
 
-    jal malloc
+    mv     s2, a0                 # Save matrix pointer
 
-    beq a0, x0, malloc_error
+    # Read matrix data into allocated memory
+    mv     a0, s0                 # File pointer
+    mv     a1, s2                 # Destination buffer
+    mv     a2, s1                 # Number of bytes to read
+    jal    fread                  # Read data
 
-    # set up file, buffer and bytes to read
-    mv s2, a0        # matrix
-    mv a0, s0
-    mv a1, s2
-    lw a2, 24(sp)
+    bne    a0, s1, fread_error    # Check if all data was read
 
-    jal fread
+    # Close the file
+    mv     a0, s0                 # File pointer
+    jal    fclose                 # Close file
 
-    lw t3, 24(sp)
-    bne a0, t3, fread_error
+    li     t0, -1
+    beq    a0, t0, fclose_error   # Check for fclose error
 
-    mv a0, s0
+    mv     a0, s2                 # Return matrix pointer
 
-    jal fclose
+    # Function Epilogue
+    lw     ra, 44(sp)             # Restore saved registers
+    lw     s0, 40(sp)
+    lw     s1, 36(sp)
+    lw     s2, 32(sp)
+    lw     s3, 28(sp)
+    lw     s4, 24(sp)
+    addi   sp, sp, 48             # Deallocate stack frame
+    jr     ra                     # Return to caller
 
-    li t0, -1
-
-    beq a0, t0, fclose_error
-
-    mv a0, s2
-
-    # Epilogue
-    lw ra, 0(sp)
-    lw s0, 4(sp)
-    lw s1, 8(sp)
-    lw s2, 12(sp)
-    lw s3, 16(sp)
-    lw s4, 20(sp)
-    addi sp, sp, 40
-
-    jr ra
-
+# Error Handling Labels
 malloc_error:
-    li a0, 26
-    j error_exit
+    li     a0, 26                 # Error code for malloc failure
+    j      error_exit
 
 fopen_error:
-    li a0, 27
-    j error_exit
+    li     a0, 27                 # Error code for fopen failure
+    j      error_exit
 
 fread_error:
-    li a0, 29
-    j error_exit
+    li     a0, 29                 # Error code for fread failure
+    j      error_exit
 
 fclose_error:
-    li a0, 28
-    j error_exit
+    li     a0, 28                 # Error code for fclose failure
+    j      error_exit
 
 error_exit:
-    lw ra, 0(sp)
-    lw s0, 4(sp)
-    lw s1, 8(sp)
-    lw s2, 12(sp)
-    lw s3, 16(sp)
-    lw s4, 20(sp)
-    addi sp, sp, 40
-    j exit
+    lw     ra, 44(sp)             # Restore saved registers
+    lw     s0, 40(sp)
+    lw     s1, 36(sp)
+    lw     s2, 32(sp)
+    lw     s3, 28(sp)
+    lw     s4, 24(sp)
+    addi   sp, sp, 48             # Deallocate stack frame
+    j      exit                   # Terminate program

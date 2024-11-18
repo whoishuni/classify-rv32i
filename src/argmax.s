@@ -23,34 +23,37 @@
 # =================================================================
 
 argmax:
-    li t6, 1                 # t6 = 1, 用於檢查數組長度
-    blt a1, t6, handle_error # 若數組長度小於1，跳轉到錯誤處理
+    li t6, 1                   # Load 1 into t6 for comparison
+    blt a1, t6, handle_error   # If a1 < 1, jump to handle_error
 
-    lw t0, 0(a0)             # 將第一個元素載入 t0 作為初始最大值
-    li t1, 0                 # 初始化最大值的索引為 0
-    li t2, 1                 # 設置 t2 為 1，用於循環中的元素索引
+    lw t0, 0(a0)               # Load the first element of the array into t0 (max value)
+    li t1, 0                   # Initialize index for max value (result index)
+    addi t2, a0, 4             # Start pointer at the second element
+    li t3, 1                   # Start index at 1 for the loop
 
 loop_start:
-    beq t2, a1, exit         # 若已處理完所有元素，跳轉到結束
+    beq t3, a1, end_argmax     # If we have reached the end, jump to end_argmax
 
-    lw t3, 0(a0)             # 將當前元素載入 t3
-    addi a0, a0, 4           # 移動指針至下一元素
-    bgt t3, t0, update_max   # 若 t3 > t0，跳轉到更新最大值
+    lw t4, 0(t2)               # Load the current element into t4
+    blt t4, t0, skip_update    # If current element < max, skip update
 
-    j next_element           # 否則，進入下一個元素
+    # Update max if current element > t0
+    bgt t4, t0, update_max
+
+skip_update:
+    addi t2, t2, 4             # Move to the next element (increment pointer by 4 bytes)
+    addi t3, t3, 1             # Increment the index
+    j loop_start               # Repeat for the next element
 
 update_max:
-    mv t0, t3                # 更新最大值為 t3
-    mv t1, t2                # 更新最大值的索引為當前索引 t2
-
-next_element:
-    addi t2, t2, 1           # 索引加1
-    j loop_start             # 回到循環開頭
+    mv t0, t4                  # Update max value with the current element
+    mv t1, t3                  # Update max index with the current index
+    j skip_update              # Continue loop
 
 handle_error:
-    li a0, 36                # 設置錯誤代碼 36
-    j exit                   # 跳轉到結束
+    li a0, 36                  # Set exit code to 36 for invalid input
+    j exit                     # Exit program
 
-exit:
-    mv a0, t1                # 返回最大值的索引
-    ret                      # 返回
+end_argmax:
+    mv a0, t1                  # Move result index to a0
+    jr ra                      # Return to caller

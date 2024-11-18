@@ -15,14 +15,14 @@
 #   None - The operation modifies the value at the pointer address
 # =================================================================
 abs:
-    # Prologue
-    ebreak
-    # Load number from memory
-    lw t0 0(a0)
-    bge t0, zero, done
+    # Prologue - Load the value from memory
+    lw      t1, 0(a0)           # Load the value pointed to by a0 into t1
 
-    # TODO: Add your own implementation
+    # Perform absolute value calculation
+    bgez    t1, finish_abs      # If t1 >= 0, skip negation
+    sub     t1, x0, t1          # Compute absolute value: t1 = 0 - t1
 
-done:
-    # Epilogue
-    jr ra
+finish_abs:
+    # Store the absolute value back to memory
+    sw      t1, 0(a0)           # Store the result back at the address in a0
+    ret                         # Return to the caller

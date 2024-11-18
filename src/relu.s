@@ -24,30 +24,28 @@
 # ==============================================================================
 
 relu:
-    li t0, 1                # 設置 t0 = 1 作為驗證的閾值
-    blt a1, t0, error       # 如果數組長度小於 1，跳轉到錯誤處理
+    li t0, 1               # Load 1 into t0 for comparison
+    blt a1, t0, error       # If a1 < 1, jump to error
 
-    li t1, 0                # 設置 t1 = 0，作為與數組值比較的基準
-    mv t2, a0               # 將數組起始地址存入 t2 進行遍歷
+    li t1, 0               # Load 0 into t1 for ReLU comparison
+    li t2, 4               # Load 4 into t2, as each integer is 4 bytes
 
 loop_start:
-    beq a1, t0, exit        # 如果所有元素都處理完畢，跳轉到結束
-    lw t3, 0(t2)            # 從地址 t2 加載當前元素至 t3
-    blt t3, t1, set_zero    # 如果當前元素小於 0，跳轉到設置 0
-    j next                  # 否則，跳轉到下一個元素
+    beqz a1, end_relu      # If a1 is 0, we are done with the array
 
-set_zero:
-    sw t1, 0(t2)            # 將 0 存入當前地址（即將負值設為 0）
+    lw t3, 0(a0)           # Load current array element into t3
+    bge t3, t1, skip_relu  # If element >= 0, skip to the next element
 
-next:
-    addi t2, t2, 4          # 將地址指向下一個元素
-    addi t0, t0, 1          # 更新計數器
-    j loop_start            # 迴圈回到 loop_start 繼續處理下一元素
+    sw t1, 0(a0)           # Else, store 0 in current position
+
+skip_relu:
+    add a0, a0, t2         # Move to the next element (increment pointer by 4 bytes)
+    addi a1, a1, -1        # Decrement element count
+    j loop_start           # Repeat for the next element
 
 error:
-    li a0, 36               # 設置錯誤代碼 36
-    j exit                  # 跳轉到結束
+    li a0, 36              # Set exit code to 36 for invalid input
+    j exit                 # Exit program
 
-exit:
-    ret                     # 返回
-
+end_relu:
+    jr ra                  # Return to caller
