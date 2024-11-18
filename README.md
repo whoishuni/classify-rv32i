@@ -1,8 +1,5 @@
 # Assignment 2: Classify
 
-
-# Assignment 2: Classify
-
 1. [Introduction](#introduction)
 2. [Task 1: ReLU Activation Function](#task-1-relu-activation-function)
    - [Overview](#overview)
